@@ -12,7 +12,8 @@ from data import LCQMC_Dataset, load_embeddings
 from utils import train, validate
 from model import ESIM
 
-def main(train_file, dev_file, embeddings_file, vocab_file, target_dir, 
+
+def main(train_file, dev_file, embeddings_file,  target_dir,
          max_length=50,
          hidden_size=300,
          dropout=0.2,
@@ -24,23 +25,24 @@ def main(train_file, dev_file, embeddings_file, vocab_file, target_dir,
          max_grad_norm=10.0,
          gpu_index=0,
          checkpoint=None):
-    device = torch.device("cuda:{}".format(gpu_index) if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:{}".format(gpu_index)
+                          if torch.cuda.is_available() else "cpu")
     print(20 * "=", " Preparing for training ", 20 * "=")
     # 保存模型的路径
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
-    # -------------------- Data loading ------------------- #
-    print("\t* Loading training data...")
-    train_data = LCQMC_Dataset(train_file, vocab_file, max_length)
-    train_loader = DataLoader(train_data, shuffle=True, batch_size=batch_size)
-    print("\t* Loading validation data...")
-    dev_data = LCQMC_Dataset(dev_file, vocab_file, max_length)
-    dev_loader = DataLoader(dev_data, shuffle=True, batch_size=batch_size)
     # -------------------- Model definition ------------------- #
     print("\t* Building model...")
-    embeddings = load_embeddings(embeddings_file)
-    model = ESIM(hidden_size, embeddings=embeddings, dropout=dropout, 
+    embeddings, embed = load_embeddings(embeddings_file)
+    model = ESIM(hidden_size, embeddings=embeddings, dropout=dropout,
                  num_classes=num_classes, device=device).to(device)
+    # -------------------- Data loading ------------------- #
+    print("\t* Loading training data...")
+    train_data = LCQMC_Dataset(train_file, embed.key_to_index, max_length)
+    train_loader = DataLoader(train_data, shuffle=True, batch_size=batch_size)
+    print("\t* Loading validation data...")
+    dev_data = LCQMC_Dataset(dev_file, embed.key_to_index, max_length)
+    dev_loader = DataLoader(dev_data, shuffle=True, batch_size=batch_size)
     # -------------------- Preparation for training  ------------------- #
     criterion = nn.CrossEntropyLoss()
     # 过滤出需要梯度更新的参数
@@ -48,7 +50,7 @@ def main(train_file, dev_file, embeddings_file, vocab_file, target_dir,
     # optimizer = optim.Adadelta(parameters, params["LEARNING_RATE"])
     optimizer = torch.optim.Adam(parameters, lr=lr)
     # optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", 
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max",
                                                            factor=0.85, patience=0)
     best_score = 0.0
     start_epoch = 1
@@ -69,7 +71,8 @@ def main(train_file, dev_file, embeddings_file, vocab_file, target_dir,
         valid_losses = checkpoint["valid_losses"]
      # Compute loss and accuracy before starting (or resuming) training.
     _, valid_loss, valid_accuracy, auc = validate(model, dev_loader, criterion)
-    print("\t* Validation loss before training: {:.4f}, accuracy: {:.4f}%, auc: {:.4f}".format(valid_loss, (valid_accuracy*100), auc))
+    print("\t* Validation loss before training: {:.4f}, accuracy: {:.4f}%, auc: {:.4f}".format(
+        valid_loss, (valid_accuracy * 100), auc))
     # -------------------- Training epochs ------------------- #
     print("\n", 20 * "=", "Training ESIM model on device: {}".format(device), 20 * "=")
     patience_counter = 0
@@ -80,9 +83,10 @@ def main(train_file, dev_file, embeddings_file, vocab_file, target_dir,
                                                        criterion, epoch, max_grad_norm)
         train_losses.append(epoch_loss)
         print("-> Training time: {:.4f}s, loss = {:.4f}, accuracy: {:.4f}%"
-              .format(epoch_time, epoch_loss, (epoch_accuracy*100)))
+              .format(epoch_time, epoch_loss, (epoch_accuracy * 100)))
         print("* Validation for epoch {}:".format(epoch))
-        epoch_time, epoch_loss, epoch_accuracy, epoch_auc = validate(model, dev_loader, criterion)
+        epoch_time, epoch_loss, epoch_accuracy, epoch_auc = validate(
+            model, dev_loader, criterion)
         valid_losses.append(epoch_loss)
         print("-> Valid. time: {:.4f}s, loss: {:.4f}, accuracy: {:.4f}%, auc: {:.4f}\n"
               .format(epoch_time, epoch_loss, (epoch_accuracy * 100), epoch_auc))
@@ -94,13 +98,13 @@ def main(train_file, dev_file, embeddings_file, vocab_file, target_dir,
         else:
             best_score = epoch_accuracy
             patience_counter = 0
-            torch.save({"epoch": epoch, 
+            torch.save({"epoch": epoch,
                         "model": model.state_dict(),
                         "best_score": best_score,
                         "epochs_count": epochs_count,
                         "train_losses": train_losses,
                         "valid_losses": valid_losses},
-                        os.path.join(target_dir, "best.pth.tar"))
+                       os.path.join(target_dir, "best.pth.tar"))
         # Save the model at each epoch.
         torch.save({"epoch": epoch,
                     "model": model.state_dict(),
@@ -109,13 +113,14 @@ def main(train_file, dev_file, embeddings_file, vocab_file, target_dir,
                     "epochs_count": epochs_count,
                     "train_losses": train_losses,
                     "valid_losses": valid_losses},
-                    os.path.join(target_dir, "esim_{}.pth.tar".format(epoch)))
-        
+                   os.path.join(target_dir, "esim_{}.pth.tar".format(epoch)))
+
         if patience_counter >= patience:
             print("-> Early stopping: patience limit reached, stopping...")
             break
-    
+
+
 if __name__ == "__main__":
-    
-    main("../data/LCQMC_train.csv","../data/LCQMC_dev.csv",
-         "../data/token_vec_300.bin", "../data/vocab.txt", "models")
+
+    main("../data/train1.csv", "../data/dev1.csv",
+         "../data/sgns.wiki.char", "models")

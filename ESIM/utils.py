@@ -10,21 +10,26 @@ import time
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score
 
+
 def sort_by_seq_lens(batch, sequences_lengths, descending=True):
-    sorted_seq_lens, sorting_index = sequences_lengths.sort(0, descending=descending)
+    sorted_seq_lens, sorting_index = sequences_lengths.sort(
+        0, descending=descending)
     sorted_batch = batch.index_select(0, sorting_index)
-    idx_range = torch.arange(0, len(sequences_lengths)).type_as(sequences_lengths)
+    idx_range = torch.arange(0, len(sequences_lengths)
+                             ).type_as(sequences_lengths)
     #idx_range = sequences_lengths.new_tensor(torch.arange(0, len(sequences_lengths)))
     _, revese_mapping = sorting_index.sort(0, descending=False)
     restoration_index = idx_range.index_select(0, revese_mapping)
     return sorted_batch, sorted_seq_lens, sorting_index, restoration_index
+
 
 def get_mask(sequences_batch, sequences_lengths):
     batch_size = sequences_batch.size()[0]
     max_length = torch.max(sequences_lengths)
     mask = torch.ones(batch_size, max_length, dtype=torch.float)
     mask[sequences_batch[:, :max_length] == 0] = 0.0
-    return mask									
+    return mask
+
 
 def masked_softmax(tensor, mask):
     """
@@ -77,6 +82,8 @@ def weighted_sum(tensor, weights, mask):
 
 # Code inspired from:
 # https://github.com/allenai/allennlp/blob/master/allennlp/nn/util.py.
+
+
 def replace_masked(tensor, mask, value):
     """
     Replace the all the values of vectors in 'tensor' that are masked in
@@ -95,7 +102,8 @@ def replace_masked(tensor, mask, value):
     reverse_mask = 1.0 - mask
     values_to_add = value * reverse_mask
     return tensor * mask + values_to_add
-               
+
+
 def correct_predictions(output_probabilities, targets):
     """
     Compute the number of predictions that match some target classes in the
@@ -110,6 +118,7 @@ def correct_predictions(output_probabilities, targets):
     _, out_classes = output_probabilities.max(dim=1)
     correct = (out_classes == targets).sum()
     return correct.item()
+
 
 def validate(model, dataloader, criterion):
     """
@@ -155,6 +164,7 @@ def validate(model, dataloader, criterion):
     epoch_accuracy = running_accuracy / (len(dataloader.dataset))
     return epoch_time, epoch_loss, epoch_accuracy, roc_auc_score(all_labels, all_prob)
 
+
 def test(model, dataloader):
     """
     Test the accuracy of a model on some labelled test dataset.
@@ -193,6 +203,7 @@ def test(model, dataloader):
     total_time = time.time() - time_start
     accuracy /= (len(dataloader.dataset))
     return batch_time, total_time, accuracy, roc_auc_score(all_labels, all_prob)
+
 
 def train(model, dataloader, optimizer, criterion, epoch_number, max_gradient_norm):
     """
@@ -236,7 +247,7 @@ def train(model, dataloader, optimizer, criterion, epoch_number, max_gradient_no
         running_loss += loss.item()
         correct_preds += correct_predictions(probs, labels)
         description = "Avg. batch proc. time: {:.4f}s, loss: {:.4f}"\
-                      .format(batch_time_avg/(batch_index+1), running_loss/(batch_index+1))
+                      .format(batch_time_avg / (batch_index + 1), running_loss / (batch_index + 1))
         tqdm_batch_iterator.set_description(description)
     epoch_time = time.time() - epoch_start
     epoch_loss = running_loss / len(dataloader)
