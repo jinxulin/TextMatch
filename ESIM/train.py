@@ -122,5 +122,5 @@ def main(train_file, dev_file, embeddings_file,  target_dir,
 
 if __name__ == "__main__":
 
-    main("../data/train1.csv", "../data/dev1.csv",
+    main("../data/train2.csv", "../data/dev2.csv",
          "../data/sgns.wiki.char", "models")

@@ -10,18 +10,21 @@ import time
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score
 
+
 def generate_sent_masks(enc_hiddens, source_lengths):
     """ Generate sentence masks for encoder hidden states.
     @param enc_hiddens (Tensor): encodings of shape (b, src_len, h), where b = batch size,
-                                 src_len = max source length, h = hidden size. 
+                                 src_len = max source length, h = hidden size.
     @param source_lengths (List[int]): List of actual lengths for each of the sentences in the batch.len = batch size
     @returns enc_masks (Tensor): Tensor of sentence masks of shape (b, src_len),
                                 where src_len = max source length, b = batch size.
     """
-    enc_masks = torch.zeros(enc_hiddens.size(0), enc_hiddens.size(1), dtype=torch.float)
-    for e_id, src_len in enumerate(source_lengths):	
-        enc_masks[e_id, :src_len] = 1  
-    return enc_masks								
+    enc_masks = torch.zeros(enc_hiddens.size(
+        0), enc_hiddens.size(1), dtype=torch.float)
+    for e_id, src_len in enumerate(source_lengths):
+        enc_masks[e_id, :src_len] = 1
+    return enc_masks
+
 
 def masked_softmax(tensor, mask):
     """
@@ -71,7 +74,8 @@ def weighted_sum(tensor, weights, mask):
     mask = mask.expand_as(weighted_sum).contiguous().float()
 
     return weighted_sum * mask
-               
+
+
 def correct_predictions(output_probabilities, targets):
     """
     Compute the number of predictions that match some target classes in the
@@ -86,6 +90,7 @@ def correct_predictions(output_probabilities, targets):
     _, out_classes = output_probabilities.max(dim=1)
     correct = (out_classes == targets).sum()
     return correct.item()
+
 
 def validate(model, dataloader, criterion):
     """
@@ -122,12 +127,13 @@ def validate(model, dataloader, criterion):
             loss = criterion(logits, labels)
             running_loss += loss.item()
             running_accuracy += correct_predictions(probs, labels)
-            all_prob.extend(probs[:,1].cpu().numpy())
+            all_prob.extend(probs[:, 1].cpu().numpy())
             all_labels.extend(label)
     epoch_time = time.time() - epoch_start
     epoch_loss = running_loss / len(dataloader)
     epoch_accuracy = running_accuracy / (len(dataloader.dataset))
     return epoch_time, epoch_loss, epoch_accuracy, roc_auc_score(all_labels, all_prob)
+
 
 def test(model, dataloader):
     """
@@ -159,12 +165,13 @@ def test(model, dataloader):
             _, probs = model(q1, q2)
             accuracy += correct_predictions(probs, labels)
             batch_time += time.time() - batch_start
-            all_prob.extend(probs[:,1].cpu().numpy())
+            all_prob.extend(probs[:, 1].cpu().numpy())
             all_labels.extend(label)
     batch_time /= len(dataloader)
     total_time = time.time() - time_start
     accuracy /= (len(dataloader.dataset))
     return batch_time, total_time, accuracy, roc_auc_score(all_labels, all_prob)
+
 
 def train(model, dataloader, optimizer, criterion, epoch_number, max_gradient_norm):
     """
@@ -206,7 +213,7 @@ def train(model, dataloader, optimizer, criterion, epoch_number, max_gradient_no
         running_loss += loss.item()
         correct_preds += correct_predictions(probs, labels)
         description = "Avg. batch proc. time: {:.4f}s, loss: {:.4f}"\
-                      .format(batch_time_avg/(batch_index+1), running_loss/(batch_index+1))
+                      .format(batch_time_avg / (batch_index + 1), running_loss / (batch_index + 1))
         tqdm_batch_iterator.set_description(description)
     epoch_time = time.time() - epoch_start
     epoch_loss = running_loss / len(dataloader)
