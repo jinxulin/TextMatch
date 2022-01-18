@@ -45,15 +45,12 @@ class DataPrecessForSentence(Dataset):
             seq_segment : shape等于seq，因为是单句，所以取值都为0。
             labels      : 标签取值为{0,1}，其中0表示负样本，1代表正样本。
         """
-        df = pd.read_csv(file, sep='\t').fillna('')
-        # map(HanziConv.toSimplified, df['sentence1'].values)
-        sentences_1 = df['sentence1'].values
-        # map(HanziConv.toSimplified, df['sentence2'].values)
-        sentences_2 = df['sentence2'].values
-        # map(HanziConv.toSimplified, df['back_cate_name'].values)
-        cate_1 = df['back_cate_name'].values
-        # map(HanziConv.toSimplified, df['category_name'].values)
-        cate_2 = df['category_name'].values
+        df = pd.read_csv(file, sep='\t')
+        df = df[~df['label'].isna()].fillna('')
+        sentences_1 = map(HanziConv.toSimplified, df['sentence1'].values)
+        sentences_2 = map(HanziConv.toSimplified, df['sentence2'].values)
+        cate_1 = map(HanziConv.toSimplified, df['cate1'].values)
+        cate_2 = map(HanziConv.toSimplified, df['cate2'].values)
         labels = df['label'].values
         # 切词
         tokens_seq_1 = list(map(self.bert_tokenizer.tokenize, sentences_1))
@@ -86,17 +83,17 @@ class DataPrecessForSentence(Dataset):
 
         """
         # 对超长序列进行截断
-        if len(tokens_seq_1) > ((self.max_seq_len - 3) // 2):
+        if len(tokens_seq_1) + len(tokens_cate_1) > ((self.max_seq_len - 3) // 2):
             tokens_seq_1 = tokens_seq_1[0:(self.max_seq_len - 3) // 2]
-        if len(tokens_seq_2) > ((self.max_seq_len - 3) // 2):
+        if len(tokens_seq_2) + len(tokens_cate_2) > ((self.max_seq_len - 3) // 2):
             tokens_seq_2 = tokens_seq_2[0:(self.max_seq_len - 3) // 2]
         # 分别在首尾拼接特殊符号
-        seq = ['[CLS]'] + tokens_seq_1 + ['[SEP]'] + tokens_seq_2 + \
-            ['[SEP]'] + tokens_cate_1 + ['[SEP]'] + tokens_cate_2 + ['[SEP]']
+        seq = ['[CLS]'] + tokens_seq_1 + ['[SEP]'] + tokens_cate_1 + \
+            ['[SEP]'] + tokens_seq_2 + ['[SEP]'] + tokens_cate_2 + ['[SEP]']
         seq_segment = [0] * (len(tokens_seq_1) + 2) + \
+            [0] * (len(tokens_cate_1) + 1) + \
             [1] * (len(tokens_seq_2) + 1) + \
-            [2] * (len(tokens_cate_1) + 1) + \
-            [3] * (len(tokens_cate_2) + 1)
+            [1] * (len(tokens_cate_2) + 1)
         # ID化
         seq = self.bert_tokenizer.convert_tokens_to_ids(seq)
         # 根据max_seq_len与seq的长度产生填充序列
